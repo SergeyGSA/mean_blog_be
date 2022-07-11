@@ -2,28 +2,18 @@ import express from 'express'
 import fs from 'fs'
 import multer from 'multer'
 import cors from 'cors'
-
+import cookieParser from 'cookie-parser'
+import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 
-import {
-  registerValidation,
-  loginValidation,
-  postCreateValidation,
-} from './validations.js'
+import { router } from './src/router/index.js'
+import { errorMiddleware } from './src/middlewares/error.middleware.js'
 
-import { handleValidationErrors, checkAuth } from './utils/index.js'
-
-import { UserController, PostController } from './controllers/index.js'
-
-mongoose
-  .connect(
-    'mongodb+srv://admin:gsa777@cluster0.ctxcf.mongodb.net/?retryWrites=true&w=majority',
-  )
-  .then(() => console.log('DB ok'))
-  .catch((err) => console.log('DB error', err))
+dotenv.config()
 
 const app = express()
 
+// TODO: rework
 const storage = multer.diskStorage({
   destination: (_, __, cb) => {
     if (!fs.existsSync('uploads')) {
@@ -37,56 +27,39 @@ const storage = multer.diskStorage({
 })
 
 const upload = multer({ storage })
+// TODO: /rework
 
 app.use(express.json())
+app.use(cookieParser())
 app.use(cors())
+app.use('', router)
+app.use(errorMiddleware)
+
+// TODO: rework
 app.use('/uploads', express.static('uploads'))
 
-app.post(
-  '/auth/login',
-  loginValidation,
-  handleValidationErrors,
-  UserController.login,
-)
-app.post(
-  '/auth/register',
-  registerValidation,
-  handleValidationErrors,
-  UserController.register,
-)
-app.get('/auth/me', checkAuth, UserController.getMe)
-
-app.post('/upload', checkAuth, upload.single('image'), (req, res) => {
+app.post('/upload', /* authMiddleware */ upload.single('image'), (req, res) => {
   res.json({
     url: `/uploads/${req.file.originalname}`,
   })
 })
+// TODO: /rework
 
-app.get('/tags', PostController.getLastTags)
+const start = async () => {
+  try {
+    await mongoose
+      .connect(`${process.env.DB_URL}`, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      })
+      .then(() => console.log('DB ok'))
 
-app.get('/posts', PostController.getAll)
-app.get('/posts/tags', PostController.getLastTags)
-app.get('/posts/:id', PostController.getOne)
-app.post(
-  '/posts',
-  checkAuth,
-  postCreateValidation,
-  handleValidationErrors,
-  PostController.create,
-)
-app.delete('/posts/:id', checkAuth, PostController.remove)
-app.patch(
-  '/posts/:id',
-  checkAuth,
-  postCreateValidation,
-  handleValidationErrors,
-  PostController.update,
-)
-
-app.listen(process.env.PORT || 8080, (err) => {
-  if (err) {
-    return console.log(err)
+    app.listen(process.env.PORT || 8080, () =>
+      console.log(`Server started on port ${process.env.PORT}`),
+    )
+  } catch (error) {
+    console.log(error)
   }
+}
 
-  console.log('Server OK')
-})
+start()
