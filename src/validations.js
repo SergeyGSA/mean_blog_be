@@ -11,7 +11,7 @@ export const registerValidation = [
   body('fullName', 'Full name must be at least 5 characters').isLength({
     min: 3,
   }),
-  body('avatarUrl', 'Invalid avatar link').isURL(),
+  body('avatarUrl', 'Invalid avatar link').optional().isURL(),
 ]
 
 export const postCreateValidation = [
